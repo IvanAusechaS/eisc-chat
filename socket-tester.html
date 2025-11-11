@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EISC Chat - Socket.IO Tester</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+        .content { padding: 30px; }
+        .box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .box:hover { border-color: #667eea; }
+        .box h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        button:active { transform: translateY(0); }
+        button.danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        #status {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: 600;
+            text-align: center;
+        }
+        #status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        #status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        #log {
+            background: #212529;
+            color: #00ff00;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .message {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        .message:last-child { border-bottom: none; }
+        .time { color: #6c757d; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .receive { color: #ffc107; }
+        .online-users {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .user-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            margin: 3px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 EISC Chat - Socket.IO Tester</h1>
+            <p>Herramienta de prueba para el servidor de chat en tiempo real</p>
+        </div>
+
+        <div class="content">
+            <!-- Conexión -->
+            <div class="box">
+                <h3>🔌 1. Conexión al Servidor</h3>
+                <input type="text" id="serverUrl" value="http://localhost:3000" placeholder="URL del servidor">
+                <div>
+                    <button onclick="connectSocket()">✅ Conectar</button>
+                    <button onclick="disconnectSocket()" class="danger">❌ Desconectar</button>
+                </div>
+                <div id="status" class="disconnected">⚫ Desconectado</div>
+            </div>
+
+            <!-- Usuario -->
+            <div class="box">
+                <h3>👤 2. Registrar Usuario</h3>
+                <input type="text" id="userId" placeholder="Tu email (ej: user@test.com)">
+                <button onclick="registerUser()">📝 Registrar Usuario</button>
+                <div class="online-users">
+                    <strong>👥 Usuarios en línea (<span id="onlineCount">0</span>):</strong>
+                    <div id="onlineUsers"></div>
+                </div>
+            </div>
+
+            <!-- Mensajes -->
+            <div class="box">
+                <h3>💬 3. Enviar Mensaje al Grupo</h3>
+                <input type="text" id="messageText" placeholder="Escribe tu mensaje aquí">
+                <button onclick="sendMessage()">📤 Enviar al Grupo</button>
+                <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 6px;">
+                    <strong>💡 Nota:</strong> Los mensajes se envían a TODOS los usuarios conectados (chat grupal tipo foro)
+                </div>
+            </div>
+
+            <!-- Log -->
+            <div class="box">
+                <h3>📊 Log de Eventos</h3>
+                <button onclick="clearLog()" class="danger">🗑️ Limpiar Log</button>
+                <div id="log"></div>
+            </div>
+
+            <!-- Instrucciones -->
+            <div class="box">
+                <h3>📖 Instrucciones Rápidas</h3>
+                <ol style="line-height: 2; padding-left: 20px;">
+                    <li>Asegúrate de que el servidor esté corriendo: <code>npm run dev</code></li>
+                    <li><strong>¡IMPORTANTE!</strong> Habilita Firestore en: <a href="https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project=eisc-chat" target="_blank">Firebase Console</a></li>
+                    <li>Haz clic en "Conectar" (debería conectarse a localhost:3000)</li>
+                    <li>Registra tu usuario con un nombre/email</li>
+                    <li>Abre esta página en otra pestaña y registra otro usuario</li>
+                    <li>Envía mensajes y <strong>TODOS los usuarios conectados los verán</strong> (chat grupal)</li>
+                    <li>Verifica en Firebase Firestore que se guarden los mensajes</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const typeClass = type;
+            logDiv.innerHTML += `<div class="message ${typeClass}"><span class="time">[${time}]</span> ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log limpiado', 'info');
+        }
+
+        function updateStatus(connected, socketId = null) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.className = 'connected';
+                statusDiv.innerHTML = `🟢 Conectado - Socket ID: ${socketId}`;
+            } else {
+                statusDiv.className = 'disconnected';
+                statusDiv.innerHTML = '🔴 Desconectado';
+            }
+        }
+
+        function updateOnlineUsers(users) {
+            const countSpan = document.getElementById('onlineCount');
+            const usersDiv = document.getElementById('onlineUsers');
+            
+            countSpan.textContent = users.length;
+            
+            if (users.length === 0) {
+                usersDiv.innerHTML = '<p style="margin-top:10px; color:#6c757d;">No hay usuarios en línea</p>';
+            } else {
+                usersDiv.innerHTML = users.map(user => 
+                    `<span class="user-badge">${user.userId}</span>`
+                ).join('');
+            }
+        }
+
+        function connectSocket() {
+            const url = document.getElementById('serverUrl').value;
+            
+            if (socket && socket.connected) {
+                log('⚠️ Ya estás conectado', 'info');
+                return;
+            }
+
+            log('🔄 Conectando a ' + url + '...', 'info');
+            socket = io(url);
+
+            socket.on('connect', () => {
+                updateStatus(true, socket.id);
+                log('✅ Conectado exitosamente con ID: ' + socket.id, 'success');
+            });
+
+            socket.on('disconnect', () => {
+                updateStatus(false);
+                log('❌ Desconectado del servidor', 'error');
+            });
+
+            socket.on('usersOnline', (users) => {
+                updateOnlineUsers(users);
+                log(`👥 Lista de usuarios actualizada (${users.length} en línea): ${JSON.stringify(users.map(u => u.userId))}`, 'info');
+            });
+
+            socket.on('newMessage', (message) => {
+                log(`📨 MENSAJE de "${message.senderId}": "${message.text}" ${message.id ? `(ID: ${message.id})` : ''}`, 'receive');
+                
+                // Notificación visual
+                if (Notification.permission === 'granted') {
+                    new Notification('Nuevo mensaje en el grupo', {
+                        body: `${message.senderId}: ${message.text}`,
+                        icon: '💬'
+                    });
+                }
+            });
+
+            socket.on('connect_error', (error) => {
+                log('❌ Error de conexión: ' + error.message, 'error');
+                updateStatus(false);
+            });
+
+            socket.on('error', (error) => {
+                log('❌ Error: ' + error, 'error');
+            });
+        }
+
+        function disconnectSocket() {
+            if (socket && socket.connected) {
+                socket.disconnect();
+                socket = null;
+                updateStatus(false);
+                updateOnlineUsers([]);
+                log('🔴 Desconectado manualmente', 'info');
+            } else {
+                log('⚠️ No hay conexión activa', 'info');
+            }
+        }
+
+        function registerUser() {
+            const userId = document.getElementById('userId').value.trim();
+            
+            if (!socket || !socket.connected) {
+                alert('⚠️ Primero conecta al servidor');
+                log('❌ Error: No conectado al servidor', 'error');
+                return;
+            }
+            
+            if (!userId) {
+                alert('⚠️ Ingresa un email/userId');
+                return;
+            }
+
+            socket.emit('newUser', userId);
+            log(`👤 Usuario registrado: "${userId}"`, 'success');
+        }
+
+        function sendMessage() {
+            const senderId = document.getElementById('userId').value.trim();
+            const text = document.getElementById('messageText').value.trim();
+
+            if (!socket || !socket.connected) {
+                alert('⚠️ Primero conecta al servidor');
+                log('❌ Error: No conectado al servidor', 'error');
+                return;
+            }
+            
+            if (!senderId) {
+                alert('⚠️ Primero registra tu usuario');
+                return;
+            }
+            
+            if (!text) {
+                alert('⚠️ Escribe un mensaje');
+                return;
+            }
+
+            const messageData = {
+                senderId: senderId,
+                text: text
+            };
+
+            socket.emit('sendMessage', messageData);
+            log(`📤 Mensaje enviado al grupo: "${text}"`, 'success');
+            
+            // Limpiar campo de texto
+            document.getElementById('messageText').value = '';
+        }
+
+        // Pedir permiso para notificaciones
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Log inicial
+        log('🎉 Cliente Socket.IO cargado y listo', 'info');
+        log('ℹ️ Haz clic en "Conectar" para empezar', 'info');
+    </script>
+</body>
+</html>

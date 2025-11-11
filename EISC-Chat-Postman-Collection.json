@@ -1,0 +1,119 @@
+{
+  "info": {
+    "name": "EISC Chat - WebSocket Server",
+    "_postman_id": "eisc-chat-collection",
+    "description": "Colección de Postman para probar el servidor de chat con Socket.IO y Firebase.\n\nNOTA: Los eventos WebSocket (Socket.IO) no se pueden probar directamente en Postman. Usa los endpoints HTTP o la herramienta Socket.IO Client Tester que viene en esta colección.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "HTTP Endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica que el servidor esté corriendo correctamente."
+          },
+          "response": []
+        },
+        {
+          "name": "Server Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"]
+            },
+            "description": "Obtiene el estado del servidor y el número de usuarios en línea."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints HTTP básicos del servidor"
+    },
+    {
+      "name": "Socket.IO - HTML Test Page",
+      "item": [
+        {
+          "name": "Instrucciones Socket.IO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"]
+            },
+            "description": "# Cómo probar Socket.IO\n\nPostman no soporta WebSockets de Socket.IO nativamente. Usa una de estas opciones:\n\n## Opción 1: HTML Test Client (Recomendado)\nCopia el código HTML de abajo y ábrelo en tu navegador:\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n    <title>EISC Chat - Socket.IO Tester</title>\n    <script src=\"https://cdn.socket.io/4.5.4/socket.io.min.js\"></script>\n    <style>\n        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }\n        .box { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }\n        input, button { padding: 10px; margin: 5px; }\n        button { background: #007bff; color: white; border: none; cursor: pointer; }\n        button:hover { background: #0056b3; }\n        #log { background: #f5f5f5; padding: 10px; max-height: 400px; overflow-y: auto; }\n        .message { padding: 5px; border-bottom: 1px solid #eee; }\n    </style>\n</head>\n<body>\n    <h1>🚀 EISC Chat - Socket.IO Tester</h1>\n    \n    <div class=\"box\">\n        <h3>1. Conexión</h3>\n        <input type=\"text\" id=\"serverUrl\" value=\"http://localhost:3000\" placeholder=\"Server URL\" style=\"width: 300px;\">\n        <button onclick=\"connectSocket()\">Conectar</button>\n        <button onclick=\"disconnectSocket()\">Desconectar</button>\n        <p id=\"status\">Desconectado</p>\n    </div>\n\n    <div class=\"box\">\n        <h3>2. Registrar Usuario</h3>\n        <input type=\"text\" id=\"userId\" placeholder=\"Tu email (ej: user@test.com)\" style=\"width: 300px;\">\n        <button onclick=\"registerUser()\">Registrar</button>\n    </div>\n\n    <div class=\"box\">\n        <h3>3. Enviar Mensaje</h3>\n        <input type=\"text\" id=\"receiverId\" placeholder=\"Email del destinatario\" style=\"width: 250px;\"><br>\n        <input type=\"text\" id=\"messageText\" placeholder=\"Escribe tu mensaje\" style=\"width: 250px;\"><br>\n        <button onclick=\"sendMessage()\">Enviar Mensaje</button>\n    </div>\n\n    <div class=\"box\">\n        <h3>📊 Log de Eventos</h3>\n        <button onclick=\"clearLog()\">Limpiar Log</button>\n        <div id=\"log\"></div>\n    </div>\n\n    <script>\n        let socket = null;\n\n        function log(message, type = 'info') {\n            const logDiv = document.getElementById('log');\n            const time = new Date().toLocaleTimeString();\n            const colors = { info: '#333', success: '#28a745', error: '#dc3545', receive: '#007bff' };\n            logDiv.innerHTML += `<div class=\"message\" style=\"color: ${colors[type]}\">[${time}] ${message}</div>`;\n            logDiv.scrollTop = logDiv.scrollHeight;\n        }\n\n        function clearLog() {\n            document.getElementById('log').innerHTML = '';\n        }\n\n        function connectSocket() {\n            const url = document.getElementById('serverUrl').value;\n            socket = io(url);\n\n            socket.on('connect', () => {\n                document.getElementById('status').innerHTML = '✅ Conectado - ID: ' + socket.id;\n                log('✅ Conectado al servidor con ID: ' + socket.id, 'success');\n            });\n\n            socket.on('disconnect', () => {\n                document.getElementById('status').innerHTML = '❌ Desconectado';\n                log('❌ Desconectado del servidor', 'error');\n            });\n\n            socket.on('usersOnline', (users) => {\n                log('👥 Usuarios en línea (' + users.length + '): ' + JSON.stringify(users), 'info');\n            });\n\n            socket.on('receiveMessage', (message) => {\n                log('📨 Mensaje recibido: ' + JSON.stringify(message), 'receive');\n            });\n\n            socket.on('connect_error', (error) => {\n                log('❌ Error de conexión: ' + error.message, 'error');\n            });\n        }\n\n        function disconnectSocket() {\n            if (socket) {\n                socket.disconnect();\n                socket = null;\n            }\n        }\n\n        function registerUser() {\n            const userId = document.getElementById('userId').value;\n            if (!socket || !socket.connected) {\n                alert('Primero conecta al servidor');\n                return;\n            }\n            if (!userId) {\n                alert('Ingresa un userId');\n                return;\n            }\n            socket.emit('newUser', userId);\n            log('👤 Usuario registrado: ' + userId, 'success');\n        }\n\n        function sendMessage() {\n            const senderId = document.getElementById('userId').value;\n            const receiverId = document.getElementById('receiverId').value;\n            const text = document.getElementById('messageText').value;\n\n            if (!socket || !socket.connected) {\n                alert('Primero conecta al servidor');\n                return;\n            }\n            if (!senderId || !receiverId || !text) {\n                alert('Completa todos los campos');\n                return;\n            }\n\n            socket.emit('sendMessage', {\n                senderId: senderId,\n                receiverId: receiverId,\n                text: text\n            });\n\n            log('📤 Mensaje enviado a ' + receiverId + ': ' + text, 'success');\n            document.getElementById('messageText').value = '';\n        }\n    </script>\n</body>\n</html>\n```\n\n## Opción 2: Comandos cURL simulados\nVer la sección \"cURL Examples\" en esta colección.\n\n## Opción 3: Herramientas externas\n- Socket.IO Client Tool (extensión de Chrome)\n- Postman WebSocket (para WebSocket puro, no Socket.IO)\n- Online Socket.IO Tester: https://amritb.github.io/socketio-client-tool/"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "cURL Examples",
+      "item": [
+        {
+          "name": "Test 1 - Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "```bash\ncurl http://localhost:3000/health\n```\n\nRespuesta esperada:\n```json\n{\n  \"status\": \"ok\",\n  \"timestamp\": 1699123456789\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Test 2 - Server Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"]
+            },
+            "description": "```bash\ncurl http://localhost:3000/\n```\n\nRespuesta esperada:\n```json\n{\n  \"status\": \"online\",\n  \"message\": \"WebSocket chat server is running\",\n  \"onlineUsers\": 0\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Ejemplos de comandos cURL para probar los endpoints HTTP"
+    },
+    {
+      "name": "Testing Guide",
+      "item": [
+        {
+          "name": "📖 Guía de Pruebas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"]
+            },
+            "description": "# 📖 Guía Completa de Pruebas\n\n## 1️⃣ Iniciar el Servidor\n\n```bash\ncd /home/ivanausecha/Documentos/eisc-chat\nnpm run dev\n```\n\nDeberías ver:\n```\n==================================================\n🚀 Chat server running on port 3000\n🌐 CORS enabled for: http://localhost:5173\n✅ Firebase Admin SDK initialized\n==================================================\n```\n\n## 2️⃣ Probar Endpoints HTTP\n\n### Health Check\n```bash\ncurl http://localhost:3000/health\n```\n\n### Server Status\n```bash\ncurl http://localhost:3000/\n```\n\n## 3️⃣ Probar Socket.IO (Opción Fácil)\n\n1. Copia el HTML de la sección \"Socket.IO - HTML Test Page\"\n2. Guárdalo como `test-client.html`\n3. Ábrelo en tu navegador\n4. Sigue estos pasos en la interfaz:\n   - Conectar al servidor\n   - Registrar usuario (ej: `test@example.com`)\n   - Enviar mensaje a otro usuario\n\n## 4️⃣ Probar Socket.IO (Desde Consola del Navegador)\n\n1. Abre tu navegador y la consola de desarrollador (F12)\n2. Pega este código:\n\n```javascript\n// Cargar Socket.IO client\nvar script = document.createElement('script');\nscript.src = 'https://cdn.socket.io/4.5.4/socket.io.min.js';\ndocument.head.appendChild(script);\n\n// Espera 2 segundos y ejecuta:\nsetTimeout(() => {\n    const socket = io('http://localhost:3000');\n    \n    socket.on('connect', () => {\n        console.log('✅ Conectado:', socket.id);\n        socket.emit('newUser', 'test@example.com');\n    });\n    \n    socket.on('usersOnline', (users) => {\n        console.log('👥 Usuarios online:', users);\n    });\n    \n    socket.on('receiveMessage', (msg) => {\n        console.log('📨 Mensaje:', msg);\n    });\n    \n    // Para enviar un mensaje:\n    window.sendMsg = (to, text) => {\n        socket.emit('sendMessage', {\n            senderId: 'test@example.com',\n            receiverId: to,\n            text: text\n        });\n    };\n    \n    console.log('✅ Socket configurado. Usa sendMsg(\"email@destino\", \"mensaje\") para enviar');\n}, 2000);\n```\n\n## 5️⃣ Verificar en Firebase\n\n1. Ve a Firebase Console: https://console.firebase.google.com/\n2. Selecciona tu proyecto \"eisc-chat\"\n3. Ve a Firestore Database\n4. Deberías ver la colección \"messages\" con los mensajes enviados\n\n## 6️⃣ Probar con Múltiples Usuarios\n\nAbre 2 pestañas del navegador y en cada una:\n\n**Pestaña 1:**\n```javascript\nconst socket1 = io('http://localhost:3000');\nsocket1.on('connect', () => {\n    socket1.emit('newUser', 'user1@test.com');\n});\nsocket1.on('receiveMessage', (msg) => console.log('User1 recibió:', msg));\n```\n\n**Pestaña 2:**\n```javascript\nconst socket2 = io('http://localhost:3000');\nsocket2.on('connect', () => {\n    socket2.emit('newUser', 'user2@test.com');\n});\nsocket2.on('receiveMessage', (msg) => console.log('User2 recibió:', msg));\n\n// Enviar mensaje desde user2 a user1\nsocket2.emit('sendMessage', {\n    senderId: 'user2@test.com',\n    receiverId: 'user1@test.com',\n    text: 'Hola desde user2!'\n});\n```\n\n## ✅ Checklist de Pruebas\n\n- [ ] Servidor inicia sin errores\n- [ ] Firebase se inicializa correctamente\n- [ ] Health check responde OK\n- [ ] Socket.IO acepta conexiones\n- [ ] Usuarios se registran correctamente\n- [ ] Lista de usuarios online se actualiza\n- [ ] Mensajes se envían y reciben en tiempo real\n- [ ] Mensajes se guardan en Firestore\n- [ ] Desconexión actualiza la lista de usuarios\n\n## 🐛 Troubleshooting\n\n### Error: Firebase credentials\n- Verifica que el archivo .env tenga las credenciales correctas\n- Asegúrate de que la private key tenga los \\n preservados\n\n### Error: CORS\n- Agrega tu URL al ORIGIN en .env\n- Reinicia el servidor\n\n### Socket.IO no conecta\n- Verifica que el servidor esté corriendo\n- Revisa la consola del navegador para errores\n- Asegúrate de usar el puerto correcto (3000)"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
